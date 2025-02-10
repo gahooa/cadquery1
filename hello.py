@@ -1,52 +1,69 @@
+import subprocess
 import cadquery as cq
 
-# These can be modified rather than hardcoding values for each dimension.
-length = 80.0  # Length of the block
-width = 100.0  # Width of the block
-thickness = 10.0  # Thickness of the block
-center_hole_dia = 22.0  # Diameter of center hole in block
-cbore_hole_diameter = 2.4  # Bolt shank/threads clearance hole diameter
-cbore_inset = 12.0  # How far from the edge the cbored holes are set
-cbore_diameter = 4.4  # Bolt head pocket hole diameter
-cbore_depth = 2.1  # Bolt head pocket hole depth
 
-# Create a 3D block based on the dimensions above and add a 22mm center hold
-# and 4 counterbored holes for bolts
-# 1.  Establishes a workplane that an object can be built on.
-# 1a. Uses the X and Y origins to define the workplane, meaning that the
-#     positive Z direction is "up", and the negative Z direction is "down".
-# 2.  The highest(max) Z face is selected and a new workplane is created on it.
-# 3.  The new workplane is used to drill a hole through the block.
-# 3a. The hole is automatically centered in the workplane.
-# 4.  The highest(max) Z face is selected and a new workplane is created on it.
-# 5.  A for-construction rectangle is created on the workplane based on the
-#     block's overall dimensions.
-# 5a. For-construction objects are used only to place other geometry, they
-#     do not show up in the final displayed geometry.
-# 6.  The vertices of the rectangle (corners) are selected, and a counter-bored
-#     hole is placed at each of the vertices (all 4 of them at once).
+def show(o):
+    cq.exporters.export(o, 'o.step')
+    subprocess.run((
+        'f3d', 
+        '--camera-orthographic=0',
+        '--grid-color', '0.8,0.8,0.8', 
+        '--grid-absolute',
+        '--grid-unit', '10',
+        '--grid-subdivisions', '10',
+        '--background-color', '1,1,1', 
+        '--position', '100,1400', 
+        '--resolution', '2000,1600', 
+        '--point-size', '4',
+        '--line-width', '2',
+        'o.step',
+    ))
+
+width = 43.55
+depth = 175
+height = 20.03
+wall = 2.5
+inner_fillet = 5
+
+
 result = (
-    cq.Workplane("XY")
-    .box(length, width, 50)
-    .faces(">Z")
-    .workplane()
-    .hole(center_hole_dia)
-    .faces(">Z")
-    .workplane()
-    .rect(length - cbore_inset, width - cbore_inset, forConstruction=True)
+    cq.Workplane("XZ")
+    .sketch()
+    .trapezoid(4, 8, 90)
     .vertices()
-    .cboreHole(cbore_hole_diameter, cbore_diameter, cbore_depth)
-    .edges("|Z")
-    .fillet(2.0)
+    .circle(0.5, mode="s")
+    .reset()
+    .vertices()
+    .fillet(0.25)
+    .reset()
+    .rarray(0.6,2, 5, 2)
+    .slot(1.5, 0.4, mode="s", angle=122)
+    .reset()
+    .finalize()
+    .extrude(1)
 )
 
-# Displays the result of this script
-print(result)
 
-# Export the model to a STEP file
-cq.exporters.export(result, 'box.step')
+foo = cq.Workplane("XY").box(width, depth, height, centered=(True, False, False))
 
-import subprocess
-subprocess.run(('f3d', '--position', '2260,1400', '--resolution', '2000,1600', 'box.step'))
+
+handle = cq.Workplane("XY").circle(width/3).extrude(wall)
+foo = foo.union(handle)
+
+
+# select the top plane of the box
+foo = foo.faces(">Z").sketch().rect(width-wall-wall, depth-wall-wall).vertices().fillet(inner_fillet).finalize().cutBlind(-(height-wall))
+
+# select the next to bottom plane of the box
+foo = foo.faces(">Z[1]").faces(">Y").edges().fillet(inner_fillet)
+
+
+# Make the label slot
+foo = foo.faces("<X").workplane().moveTo(0, 5).lineTo(-.5, 5.5).lineTo(-.5, 18).lineTo(0, 18.5).close().cutThruAll()
+
+show(foo)
+
+
+
 
 
