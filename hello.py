@@ -1,23 +1,6 @@
 import subprocess
 import cadquery as cq
-
-
-def show(o):
-    cq.exporters.export(o, 'o.step')
-    subprocess.run((
-        'f3d', 
-        '--camera-orthographic=0',
-        '--grid-color', '0.8,0.8,0.8', 
-        '--grid-absolute',
-        '--grid-unit', '10',
-        '--grid-subdivisions', '10',
-        '--background-color', '1,1,1', 
-        '--position', '100,1400', 
-        '--resolution', '2000,1600', 
-        '--point-size', '4',
-        '--line-width', '2',
-        'o.step',
-    ))
+from lib import show
 
 width = 43.55
 depth = 175
@@ -46,10 +29,9 @@ result = (
 
 foo = cq.Workplane("XY").box(width, depth, height, centered=(True, False, False))
 
-
 handle = cq.Workplane("XY").circle(width/3).extrude(wall)
-foo = foo.union(handle)
 
+foo = foo.union(handle)
 
 # select the top plane of the box
 foo = foo.faces(">Z").sketch().rect(width-wall-wall, depth-wall-wall).vertices().fillet(inner_fillet).finalize().cutBlind(-(height-wall))
